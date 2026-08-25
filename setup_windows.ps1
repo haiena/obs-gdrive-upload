@@ -2,7 +2,7 @@
 # 以系統管理員執行：右鍵 → 以系統管理員身分執行
 # 若遇到執行原則限制：Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 Write-Host ""
 Write-Host "==============================" -ForegroundColor Cyan
 Write-Host " OBS 出貨測試影片自動上傳 — Windows 安裝" -ForegroundColor Cyan
@@ -126,21 +126,21 @@ Write-Host "[OK] tkinter 正常" -ForegroundColor Green
 
 # ---- rclone remote ----
 Write-Host ""
-$remotes = rclone listremotes 2>&1
+$remotes = rclone listremotes 2>$null
 if ($remotes -match "gdrive:") {
     Write-Host "[OK] rclone remote 'gdrive' 已存在" -ForegroundColor Green
 } else {
     Write-Host "[..] 建立 rclone remote 'gdrive'（會開瀏覽器授權）" -ForegroundColor Yellow
     $hasTeam = Read-Host "是否有 team drive（共用雲端硬碟）？(y/n)"
-    rclone config create gdrive drive scope drive
+    rclone config create gdrive drive scope drive 2>$null
     if ($hasTeam -match "^[Yy]") {
         Write-Host ""
         Write-Host "可用的 team drives：" -ForegroundColor Cyan
-        rclone backend drives gdrive:
+        rclone backend drives gdrive: 2>$null
         Write-Host ""
         $teamId = Read-Host "請貼上 team drive ID"
         if ($teamId) {
-            rclone config update gdrive team_drive $teamId
+            rclone config update gdrive team_drive $teamId 2>$null
             Write-Host "[OK] team_drive 已設定" -ForegroundColor Green
         }
     }
@@ -149,10 +149,10 @@ if ($remotes -match "gdrive:") {
 # ---- 驗證 ----
 Write-Host ""
 Write-Host "[..] 驗證 rclone 連線 ..." -ForegroundColor Yellow
-try {
-    rclone lsd gdrive: --max-depth 1 2>&1 | Out-Null
+$lsdOut = rclone lsd gdrive: --max-depth 1 2>$null
+if ($LASTEXITCODE -eq 0) {
     Write-Host "[OK] rclone 連線正常" -ForegroundColor Green
-} catch {
+} else {
     Write-Host "[!] rclone 連線失敗，請手動執行 'rclone config' 檢查" -ForegroundColor Red
 }
 
