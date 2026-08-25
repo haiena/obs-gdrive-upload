@@ -1,4 +1,4 @@
-# OBS 出貨測試影片自動上傳 — Windows 安裝
+﻿# OBS 出貨測試影片自動上傳 — Windows 安裝
 # 以系統管理員執行：右鍵 → 以系統管理員身分執行
 # 若遇到執行原則限制：Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
