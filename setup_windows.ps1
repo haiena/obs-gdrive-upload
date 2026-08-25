@@ -40,34 +40,68 @@ if ($rcloneBin) {
 $pythonBin = $null
 $pythonwBin = $null
 
-# 嘗試常見路徑
+# Microsoft Store 的假 alias 路徑，需排除
+$storeApps = "$env:LOCALAPPDATA\Microsoft\WindowsApps"
+
+function Test-RealPython ($path) {
+    if (-not $path) { return $false }
+    if (-not (Test-Path $path)) { return $false }
+    if ($path -like "$storeApps*") { return $false }
+    try {
+        $out = & $path --version 2>&1
+        return ($out -match "^Python \d")
+    } catch {
+        return $false
+    }
+}
+
+# 嘗試常見安裝路徑
 $candidates = @(
     "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
     "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
     "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",
     "C:\Python311\python.exe",
-    "C:\Python312\python.exe"
+    "C:\Python312\python.exe",
+    "C:\Python313\python.exe"
 )
 foreach ($p in $candidates) {
-    if (Test-Path $p) {
+    if (Test-RealPython $p) {
         $pythonBin = $p
         break
     }
 }
 
-# fallback: PATH 上的 python
+# fallback: PATH 上的 python（排除 Store alias）
 if (-not $pythonBin) {
-    $pythonBin = Get-Command python -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    $found = Get-Command python -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    if (Test-RealPython $found) { $pythonBin = $found }
 }
 if (-not $pythonBin) {
-    $pythonBin = Get-Command python3 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    $found = Get-Command python3 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    if (Test-RealPython $found) { $pythonBin = $found }
 }
 
+# 找不到 → 用 winget 自動安裝 Python 3.11
 if (-not $pythonBin) {
-    Write-Host "[!] 找不到 Python，請安裝 Python 3.11 (64-bit)：" -ForegroundColor Red
-    Write-Host "    https://www.python.org/downloads/" -ForegroundColor Red
-    Write-Host "    OBS 腳本頁面會標示所需的 Python 版本" -ForegroundColor Red
-    exit 1
+    Write-Host "[..] 找不到 Python，嘗試用 winget 安裝 Python 3.11 ..." -ForegroundColor Yellow
+    $wingetCheck = Get-Command winget -ErrorAction SilentlyContinue
+    if ($wingetCheck) {
+        winget install Python.Python.3.11 --accept-package-agreements --accept-source-agreements
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        # 重新掃描
+        foreach ($p in $candidates) {
+            if (Test-RealPython $p) {
+                $pythonBin = $p
+                break
+            }
+        }
+    }
+    if (-not $pythonBin) {
+        Write-Host "[!] Python 自動安裝失敗，請手動安裝 Python 3.11 (64-bit)：" -ForegroundColor Red
+        Write-Host "    https://www.python.org/downloads/" -ForegroundColor Red
+        Write-Host "    OBS 腳本頁面會標示所需版本，不符就載不進來" -ForegroundColor Red
+        exit 1
+    }
 }
 
 $pyVer = & $pythonBin --version 2>&1
