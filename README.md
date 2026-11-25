@@ -24,6 +24,21 @@ chmod +x setup_ubuntu.sh && ./setup_ubuntu.sh
 安裝腳本會自動處理 rclone、Python、tkinter，並引導設定 Google Drive 授權。
 完成後照終端機提示把腳本掛到 OBS 即可。
 
+## ⚠️ 已知問題：rclone 共用 client_id 將於 2026 年停用
+
+三個安裝腳本都用 `rclone config create gdrive drive scope drive` 建立 remote，**沒有指定自己的 `client_id`**，
+所以用的是 rclone 內建、所有使用者共用的 Google Drive client_id。依 [rclone 官方文件](https://rclone.org/drive/#making-your-own-client-id)，
+這組共用 client_id **會在 2026 年內停止服務**，新版 rclone（如 1.76）建立 remote 時也會跳出警告。
+
+- **影響**：停用後所有工作站會同時無法上傳。影片會保留在本機（上傳失敗一律不刪檔），不會遺失，但要補傳。
+- **處置**：在公司的 Google Cloud 專案建立自己的 OAuth client（類型選「電腦版應用程式」），再更新每台的 remote：
+  ```bash
+  rclone config update gdrive client_id <你的 client_id> client_secret <你的 client_secret>
+  rclone config reconnect gdrive:
+  ```
+  因為使用的是 `drive` scope，換 client_id 後原本上傳的檔案仍然看得到。
+- **待辦**：改好後，安裝腳本與本 README 要改成建立 remote 時帶入 `client_id` / `client_secret`。
+
 ## 檔案說明
 
 | 檔案 | 角色 |
